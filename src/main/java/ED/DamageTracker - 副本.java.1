@@ -1,0 +1,108 @@
+package ED;
+
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 服务端伤害追踪器：负责记录从“非满血”开始的所有伤害，直到玩家死亡或回满血。
+ */
+@Mod.EventBusSubscriber(modid = mainclass.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+public class DamageTracker {
+
+    // 记录当前战斗的所有伤害数据
+    private static final List<DamageRecord> battleRecords = new ArrayList<>();
+    // 记录致命一击的数据
+    private static DamageRecord fatalBlowRecord = null;
+    // 标记是否正在记录中
+    private static boolean isRecording = false;
+
+    /**
+     * 内部类：用于存储单次伤害的原始数据
+     */
+    public static class DamageRecord {
+        public String playerName;
+        public String attackerName;
+        public float damage;
+        public float playerHealth;
+        public float playerMaxHealth;
+        public float attackerHealth;
+        public float attackerMaxHealth;
+        public boolean isFatal;
+
+        public DamageRecord(String playerName, String attackerName, float damage,
+                            float playerHealth, float playerMaxHealth,
+                            float attackerHealth, float attackerMaxHealth, boolean isFatal) {
+            this.playerName = playerName;
+            this.attackerName = attackerName;
+            this.damage = damage;
+            this.playerHealth = playerHealth;
+            this.playerMaxHealth = playerMaxHealth;
+            this.attackerHealth = attackerHealth;
+            this.attackerMaxHealth = attackerMaxHealth;
+            this.isFatal = isFatal;
+        }
+    }
+
+    // 提供获取数据的方法，供客户端调用
+    public static List<DamageRecord> getBattleRecords() { return battleRecords; }
+    public static DamageRecord getFatalBlowRecord() { return fatalBlowRecord; }
+
+    /**
+     * 监听玩家受伤事件
+     */
+    @SubscribeEvent
+    public static void onLivingHurt(LivingHurtEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+
+        float currentHealth = player.getHealth();
+        float maxHealth = player.getMaxHealth();
+        float damageAmount = event.getAmount();
+        DamageSource source = event.getSource();
+
+        // 满血重置记录
+        if (currentHealth >= maxHealth) {
+            isRecording = false;
+            battleRecords.clear();
+            fatalBlowRecord = null;
+        }
+
+        // 非满血开始或继续记录
+        if (currentHealth < maxHealth) {
+            isRecording = true;
+            if (source.getEntity() instanceof LivingEntity attacker) {
+                String attackerName = attacker.getName().getString();
+                String playerName = player.getName().getString();
+                float attackerHealth = attacker.getHealth();
+                float attackerMaxHealth = attacker.getMaxHealth();
+
+                boolean isFatal = (damageAmount >= currentHealth);
+                DamageRecord record = new DamageRecord(playerName, attackerName, damageAmount,
+                        currentHealth, maxHealth, attackerHealth, attackerMaxHealth, isFatal);
+
+                if (isFatal) {
+                    fatalBlowRecord = record;
+                } else {
+                    battleRecords.add(record);
+                }
+            }
+        }
+    }
+
+    /**
+     * 监听玩家死亡事件
+     */
+    @SubscribeEvent
+    public static void onPlayerDeath(LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        // 死亡时不立即清空，保留数据给客户端的死亡界面读取
+        // 数据会在玩家下一次满血被打时自动清空
+    }
+}

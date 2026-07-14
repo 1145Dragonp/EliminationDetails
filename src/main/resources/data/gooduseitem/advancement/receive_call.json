@@ -1,0 +1,28 @@
+{
+  "display": {
+    "icon": {
+      "item": "gooduseitem:cfour"
+    },
+    "title": "接电话",
+    "description": "测试：只要背包里有C4就触发",
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "parent": "minecraft:adventure/root",
+  "criteria": {
+    "has_c4": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "gooduseitem:cfour"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

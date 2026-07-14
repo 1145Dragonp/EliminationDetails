@@ -1,0 +1,170 @@
+package ED;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.DeathScreen;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ScreenEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import org.joml.Vector3f;
+
+import java.util.Optional;
+
+@Mod.EventBusSubscriber(modid = mainclass.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
+public class ClientDamageDisplay {
+
+    @SubscribeEvent
+    public static void onRenderDeathScreen(ScreenEvent.Render.Post event) {
+        if (!(event.getScreen() instanceof DeathScreen)) return;
+
+        GuiGraphics guiGraphics = event.getGuiGraphics();
+        int width = event.getScreen().width;
+        int height = event.getScreen().height;
+
+        // 1. 渲染“淘汰者”模型和标题
+        EntityType<?> killerType = findLastKillerType();
+        if (killerType != null) {
+            // 【位置微调】往左、往下一点：X轴减小，Y轴增加
+            int modelX = width / 5; 
+            int modelY = height / 2 + 60; 
+            renderEntityModel(guiGraphics, killerType, modelX, modelY);
+            
+            // 绘制“淘汰者”标题，放在模型正上方
+            String title = "【淘汰者】";
+            int titleWidth = Minecraft.getInstance().font.width(title);
+            guiGraphics.drawString(Minecraft.getInstance().font, title, 
+                    modelX - titleWidth / 2, modelY - 70, 0xFF5555, true);
+        }
+
+        // 2. 渲染“助攻者”模型和标题（取倒数第二个伤害记录）
+        EntityType<?> assistType = findAssistKillerType();
+        if (assistType != null) {
+            // 助攻者放在淘汰者稍微靠右、靠下的位置，做个区分
+            int assistX = width / 3; 
+            int assistY = height / 2 + 80; 
+            renderEntityModel(guiGraphics, assistType, assistX, assistY);
+            
+            // 绘制“助攻者”标题
+            String assistTitle = "【助攻者】";
+            int assistTitleWidth = Minecraft.getInstance().font.width(assistTitle);
+            guiGraphics.drawString(Minecraft.getInstance().font, assistTitle, 
+                    assistX - assistTitleWidth / 2, assistY - 70, 0x55FFFF, true);
+        }
+
+        // 3. 渲染右侧的战报列表
+        renderKillLog(guiGraphics, width, height);
+    }
+
+    /**
+     * 查找淘汰者实体类型
+     */
+    private static EntityType<?> findLastKillerType() {
+        Player player = Minecraft.getInstance().player;
+        if (player == null) return null;
+
+        for (int i = DamageTracker.GLOBAL_RECORDS.size() - 1; i >= 0; i--) {
+            DamageTracker.DamageRecord record = DamageTracker.GLOBAL_RECORDS.get(i);
+            if (record.playerName.equals(player.getName().getString())) {
+                if (record.damage >= record.playerHealth) {
+                    return getEntityTypeByName(record.attackerName);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 查找助攻者实体类型（取致命一击之前的那一次攻击）
+     */
+    private static EntityType<?> findAssistKillerType() {
+        Player player = Minecraft.getInstance().player;
+        if (player == null) return null;
+
+        boolean foundFatal = false;
+        for (int i = DamageTracker.GLOBAL_RECORDS.size() - 1; i >= 0; i--) {
+            DamageTracker.DamageRecord record = DamageTracker.GLOBAL_RECORDS.get(i);
+            if (record.playerName.equals(player.getName().getString())) {
+                if (!foundFatal && record.damage >= record.playerHealth) {
+                    foundFatal = true; // 找到了致命一击
+                    continue;
+                }
+                if (foundFatal) {
+                    // 致命一击的前一次攻击就是助攻
+                    return getEntityTypeByName(record.attackerName);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 通过名字反查实体类型
+     */
+    private static EntityType<?> getEntityTypeByName(String name) {
+        if (name == null) return null;
+        Optional<EntityType<?>> optional = BuiltInRegistries.ENTITY_TYPE.getOptional(ResourceLocation.tryParse(name.toLowerCase()));
+        if (optional.isPresent()) return optional.get();
+
+        for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
+            if (type.getDescription().getString().equals(name)) {
+                return type;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 渲染实体模型
+     */
+    private static void renderEntityModel(GuiGraphics guiGraphics, EntityType<?> type, int x, int y) {
+        Minecraft mc = Minecraft.getInstance();
+        LivingEntity entity = (LivingEntity) type.create(mc.level);
+        if (entity == null) return;
+
+        PoseStack poseStack = guiGraphics.pose();
+        poseStack.pushPose();
+
+        poseStack.translate(x, y, 50);
+        poseStack.scale(60.0F, -60.0F, 60.0F);
+        RenderSystem.setShaderLights(new Vector3f(0.5F, 0.5F, 0.5F), new Vector3f(0.5F, 0.5F, 0.5F));
+
+        EntityRenderDispatcher dispatcher = mc.getEntityRenderDispatcher();
+        dispatcher.render(entity, 0.0D, 0.0D, 0.0D, 0.0F, 1.0F, poseStack, guiGraphics.bufferSource(), 15728880);
+        
+        poseStack.popPose();
+    }
+
+    /**
+     * 渲染右侧的战报文字列表
+     */
+    private static void renderKillLog(GuiGraphics guiGraphics, int width, int height) {
+        int startX = width - 200;
+        int startY = height / 2 - 50;
+        int lineHeight = 12;
+
+        guiGraphics.drawString(Minecraft.getInstance().font, "=== 战报 ===", startX, startY, 0xFFFF55, false);
+
+        Player player = Minecraft.getInstance().player;
+        if (player == null) return;
+
+        int recordsToShow = Math.min(DamageTracker.GLOBAL_RECORDS.size(), 10);
+        for (int i = 0; i < recordsToShow; i++) {
+            DamageTracker.DamageRecord record = DamageTracker.GLOBAL_RECORDS.get(i);
+            if (!record.playerName.equals(player.getName().getString())) continue;
+
+            String text = String.format("%s - %.1f", record.attackerName, record.damage);
+            int color = (record.damage >= record.playerHealth) ? 0xFF5555 : 0xFFFFFF;
+            
+            guiGraphics.drawString(Minecraft.getInstance().font, text, startX, startY + (i + 1) * lineHeight, color, false);
+        }
+    }
+}

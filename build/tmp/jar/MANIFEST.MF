@@ -1,0 +1,9 @@
+Manifest-Version: 1.0
+Specification-Title: eliminationdetails
+Specification-Vendor: mrmagicdragon
+Specification-Version: 1
+Implementation-Title: ttxq
+Implementation-Version: 1.0.0
+Implementation-Vendor: mrmagicdragon
+Implementation-Timestamp: 2026-07-14T06:51:43+0800
+

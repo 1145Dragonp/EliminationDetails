@@ -1,0 +1,593 @@
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+// Mojang ships Java 17 to end users in 1.18+, so your mod should target Java 17.
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
+minecraft {
+    // The mappings can be changed at any time and must be in the following format.
+    // Channel:   Version:
+    // official   MCVersion             Official field/method names from Mojang mapping files
+    // parchment  YYYY.MM.DD-MCVersion  Open community-sourced parameter names and javadocs layered on top of official
+    //
+    // You must be aware of the Mojang license when using the 'official' or 'parchment' mappings.
+    // See more information here: https://github.com/MinecraftForge/MCPConfig/blob/master/Mojang.md
+    //
+    // Parchment is an unofficial project maintained by ParchmentMC, separate from MinecraftForge
+    // Additional setup is needed to use their mappings: https://parchmentmc.org/docs/getting-started
+    //
+    // Use non-default mappings at your own risk. They may not always work.
+    // Simply re-run your setup task after changing the mappings to update your workspace.
+    mappings channel: mapping_channel, version: mapping_version
+
+    // When true, this property will have all Eclipse/IntelliJ IDEA run configurations run the "prepareX" task for the given run configuration before launching the game.
+    // In most cases, it is not necessary to enable.
+    // enableEclipsePrepareRuns = true
+    // enableIdeaPrepareRuns = true
+
+    // This property allows configuring Gradle's ProcessResources task(s) to run on IDE output locations before launching the game.
+    // It is REQUIRED to be set to true for this template to function.
+    // See https://docs.gradle.org/current/dsl/org.gradle.language.jvm.tasks.ProcessResources.html
+    copyIdeResources = true
+
+    // When true, this property will add the folder name of all declared run configurations to generated IDE run configurations.
+    // The folder name can be set on a run configuration using the "folderName" property.
+    // By default, the folder name of a run configuration is the name of the Gradle project containing it.
+    // generateRunFolders = true
+
+    // This property enables access transformers for use in development.
+    // They will be applied to the Minecraft artifact.
+    // The access transformer file can be anywhere in the project.
+    // However, it must be at "META-INF/accesstransformer.cfg" in the final mod jar to be loaded by Forge.
+    // This default location is a best practice to automatically put the file in the right place in the final jar.
+    // See https://docs.minecraftforge.net/en/latest/advanced/accesstransformers/ for more information.
+    // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+
+    // Default run configurations.
+    // These can be tweaked, removed, or duplicated as needed.
+    runs {
+        // applies to all the run configs below
+        configureEach {
+            workingDirectory project.file('run')
+
+            // Recommended logging data for a userdev environment
+            // The markers can be added/remove as needed separated by commas.
+            // "SCAN": For mods scan.
+            // "REGISTRIES": For firing of registry events.
+            // "REGISTRYDUMP": For getting the contents of all registries.
+            property 'forge.logging.markers', 'REGISTRIES'
+
+            // Recommended logging level for the console
+            // You can set various levels here.
+            // Please read: https://stackoverflow.com/questions/2031163/when-to-use-the-different-log-levels
+            property 'forge.logging.console.level', 'debug'
+
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        client {
+            // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
+            property 'forge.enabledGameTestNamespaces', mod_id
+            
+            // Support custom username and authentication (for hightstar)
+            if (project.hasProperty('username')) {
+                def username = project.property('username')
+                def uuid = project.hasProperty('auth_uuid') ? project.property('auth_uuid') : (project.hasProperty('uuid') ? project.property('uuid') : null)
+                def accessToken = project.hasProperty('auth_token') ? project.property('auth_token') : (project.hasProperty('token') ? project.property('token') : '0')
+                def userType = project.hasProperty('usertype') ? project.property('usertype') : 'legacy'
+                def authServer = project.hasProperty('authserver') ? project.property('authserver') : null
+                
+                // Add JVM args for authentication server
+                if (authServer) {
+                    jvmArgs '-Dyggdrasil.authHost=' + authServer
+                    println "Using auth server: ${authServer}"
+                }
+                
+                if (uuid) {
+                    args '--username', username, '--uuid', uuid, '--accessToken', accessToken, '--userType', userType
+                } else {
+                    args '--username', username
+                }
+            }
+        }
+
+        server {
+            property 'forge.enabledGameTestNamespaces', mod_id
+            args '--nogui'
+        }
+
+        // This run config launches GameTestServer and runs all registered gametests, then exits.
+        // By default, the server will crash when no gametests are provided.
+        // The gametest system is also enabled by default for other run configs under the /test command.
+        gameTestServer {
+            property 'forge.enabledGameTestNamespaces', mod_id
+        }
+
+        data {
+            // example of overriding the workingDirectory set in configureEach above
+            workingDirectory project.file('run-data')
+
+            // Specify the modid for data generation, where to output the resulting resource, and where to look for existing resources.
+            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+        }
+    }
+}
+
+// Include resources generated by data generators.
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+    // Put repositories for dependencies here
+    // ForgeGradle automatically adds the Forge maven and Maven Central for you
+
+    // If you have mod jar dependencies in ./libs, you can declare them as a repository like so.
+    // See https://docs.gradle.org/current/userguide/declaring_repositories.html#sub:flat_dir_resolver
+    // flatDir {
+    //     dir 'libs'
+    // }
+}
+
+
+
+dependencies {
+    // Specify the version of Minecraft to use.
+    // Any artifact can be supplied so long as it has a "userdev" classifier artifact and is a compatible patcher artifact.
+    // The "userdev" classifier will be requested and setup by ForgeGradle.
+    // If the group id is "net.minecraft" and the artifact id is one of ["client", "server", "joined"],
+    // then special handling is done to allow a setup of a vanilla dependency without the use of an external repository.
+
+    minecraft 'net.minecraftforge:forge:1.20.1-47.4.10'
+
+
+
+
+
+    // Example mod dependency with JEI - using fg.deobf() ensures the dependency is remapped to your development mappings
+    // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
+    // compileOnly fg.deobf("mezz.jei:jei-${mc_version}-common-api:${jei_version}")
+    // compileOnly fg.deobf("mezz.jei:jei-${mc_version}-forge-api:${jei_version}")
+    // runtimeOnly fg.deobf("mezz.jei:jei-${mc_version}-forge:${jei_version}")
+
+    // Example mod dependency using a mod jar from ./libs with a flat dir repository
+    // This maps to ./libs/coolmod-${mc_version}-${coolmod_version}.jar
+    // The group id is ignored when searching -- in this case, it is "blank"
+    // implementation fg.deobf("blank:coolmod-${mc_version}:${coolmod_version}")
+
+    // For more info:
+    // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
+    // http://www.gradle.org/docs/current/userguide/dependency_management.html
+}
+
+// This block of code expands all declared replace properties in the specified resource targets.
+// A missing property will result in an error. Properties are expanded using ${} Groovy notation.
+// When "copyIdeResources" is enabled, this will also run before the game launches in IDE environments.
+// See https://docs.gradle.org/current/dsl/org.gradle.language.jvm.tasks.ProcessResources.html
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+            minecraft_version: minecraft_version, minecraft_version_range: minecraft_version_range,
+            forge_version: forge_version, forge_version_range: forge_version_range,
+            loader_version_range: loader_version_range,
+            mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
+            mod_authors: mod_authors, mod_description: mod_description,
+    ]
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties + [project: project]
+    }
+}
+
+// Example for how to get properties into the manifest for reading at runtime.
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes([
+                'Specification-Title'     : mod_id,
+                'Specification-Vendor'    : mod_authors,
+                'Specification-Version'   : '1', // We are version 1 of ourselves
+                'Implementation-Title'    : project.name,
+                'Implementation-Version'  : project.jar.archiveVersion,
+                'Implementation-Vendor'   : mod_authors,
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+
+    // This is the preferred method to reobfuscate your jar file
+    finalizedBy 'reobfJar'
+}
+
+// However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing:
+// tasks.named('publish').configure {
+//     dependsOn 'reobfJar'
+// }
+
+// Example configuration to allow publishing using the maven-publish plugin
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            artifact jar
+
+        }
+        }
+    }
+    repositories {
+        maven {
+            url "file://${project.projectDir}/mcmodsrepo"
+        }
+    }
+
+
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+
+// Custom task to change mod ID, main class, and package
+task Qchange {
+    description = 'Quickly change mod ID, main class name, and package'
+    group = 'help'
+    
+    doLast {
+        def oldModId = mod_id
+        def oldMainClass = 'ExampleMod'
+        def oldPackage = 'com.example.examplemod'
+        
+        // Get parameters
+        def newModId = project.hasProperty('newid') ? project.property('newid') : null
+        def newModName = project.hasProperty('newname') ? project.property('newname') : null
+        def newMainClass = project.hasProperty('newmainclass') ? project.property('newmainclass') : null
+        def newPackage = project.hasProperty('newpackage') ? project.property('newpackage') : null
+        
+        if (!newModId && !newModName && !newMainClass && !newPackage) {
+            println "========================================="
+            println "  Quick Mod Configuration Changer"
+            println "========================================="
+            println ""
+            println "Current settings:"
+            println "  Mod ID: ${oldModId}"
+            println "  Main Class: ${oldMainClass}"
+            println "  Package: ${oldPackage}"
+            println ""
+            println "Usage:"
+            println "  gradlew Qchange -Pnewid=<new_modid>"
+            println "  gradlew Qchange -Pnewname=<New Mod Name>"
+            println "  gradlew Qchange -Pnewmainclass=<NewClassName>"
+            println "  gradlew Qchange -Pnewpackage=<com.yourname.modid>"
+            println "  gradlew Qchange -Pnewid=mymod -Pnewname=My Mod -Pnewmainclass=MyMod -Pnewpackage=com.myname.mymod"
+            println ""
+            println "Examples:"
+            println "  gradlew Qchange -Pnewid=testmod"
+            println "  gradlew Qchange -Pnewname=Test Mod"
+            println "  gradlew Qchange -Pnewmainclass=TestMod"
+            println "  gradlew Qchange -Pnewpackage=com.example.testmod"
+            println "  gradlew Qchange -Pnewid=awesomemod -Pnewname=Awesome Mod -Pnewmainclass=AwesomeMod -Pnewpackage=com.myname.awesomemod"
+            throw new GradleException("No parameters provided. See usage above.")
+        }
+        
+        println "========================================="
+        println "  Quick Mod Configuration Changer"
+        println "========================================="
+        println ""
+        
+        // 1. Change Mod ID
+        if (newModId) {
+            println "Changing Mod ID: '${oldModId}' → '${newModId}'"
+            
+            // Update gradle.properties
+            def gradlePropsFile = file('gradle.properties')
+            def lines = gradlePropsFile.readLines()
+            def newLines = []
+            for (line in lines) {
+                if (line.startsWith('mod_id=')) {
+                    newLines.add('mod_id=' + newModId)
+                } else {
+                    newLines.add(line)
+                }
+            }
+            gradlePropsFile.text = newLines.join('\n')
+            println "  ✓ Updated gradle.properties"
+            
+            // Update ExampleMod.java MODID constant
+            def modFile = file("src/main/java/${oldPackage.replace('.', '/')}/${oldMainClass}.java")
+            if (modFile.exists()) {
+                def content = modFile.text
+                content = content.replaceFirst(/public static final String MODID = "[^"]+"/, 
+                    'public static final String MODID = "' + newModId + '"')
+                
+                // Update @Mod annotation
+                def className = newMainClass ?: oldMainClass
+                content = content.replaceAll(/@Mod\([A-Za-z_]+\.MODID\)/, "@Mod(${className}.MODID)")
+                
+                // Update comments with namespace
+                content = content.replaceFirst(/under the "[^"]+" namespace/, 'under the "' + newModId + '" namespace')
+                
+                modFile.text = content
+                println "  ✓ Updated ${oldMainClass}.java"
+            }
+            
+            // Update mods.toml (uses ${mod_id} placeholder, auto-updated)
+            println "  ✓ mods.toml will auto-update (uses \${mod_id})"
+            
+            println ""
+        }
+        
+        // 1.5. Change Mod Name
+        if (newModName) {
+            println "Changing Mod Name: Updating display name"
+            
+            // Update gradle.properties
+            def gradlePropsFile = file('gradle.properties')
+            def lines = gradlePropsFile.readLines()
+            def newLines = []
+            for (line in lines) {
+                if (line.startsWith('mod_name=')) {
+                    newLines.add('mod_name=' + newModName)
+                } else {
+                    newLines.add(line)
+                }
+            }
+            gradlePropsFile.text = newLines.join('\n')
+            println "  ✓ Updated gradle.properties (mod_name)"
+            
+            // mods.toml uses ${mod_name} placeholder, will auto-update
+            println "  ✓ mods.toml will auto-update (uses \${mod_name})"
+            
+            println ""
+        }
+        
+        // 2. Change Main Class Name
+        if (newMainClass) {
+            println "Changing Main Class: '${oldMainClass}' → '${newMainClass}'"
+            
+            def oldFilePath = "src/main/java/${oldPackage.replace('.', '/')}/${oldMainClass}.java"
+            def newFilePath = "src/main/java/${oldPackage.replace('.', '/')}/${newMainClass}.java"
+            def modFile = file(oldFilePath)
+            
+            if (modFile.exists()) {
+                def content = modFile.text
+                
+                // Update class declaration
+                content = content.replaceFirst(/public class ${oldMainClass}/, 'public class ' + newMainClass)
+                
+                // Update constructor
+                content = content.replaceFirst(/public ${oldMainClass}\(/, 'public ' + newMainClass + '(')
+                
+                modFile.text = content
+                
+                // Rename file
+                modFile.renameTo(file(newFilePath))
+                println "  ✓ Renamed ${oldMainClass}.java → ${newMainClass}.java"
+            }
+            
+            println ""
+        }
+        
+        // 3. Change Package
+        if (newPackage) {
+            println "Changing Package: '${oldPackage}' → '${newPackage}'"
+            
+            def oldPackagePath = oldPackage.replace('.', '/')
+            def newPackagePath = newPackage.replace('.', '/')
+            def srcDir = file('src/main/java')
+            
+            // Find all Java files in old package
+            def oldPackageDir = file("${srcDir}/${oldPackagePath}")
+            if (oldPackageDir.exists() && oldPackageDir.isDirectory()) {
+                // Create new package directory
+                def newPackageDir = file("${srcDir}/${newPackagePath}")
+                newPackageDir.mkdirs()
+                
+                // Move all Java files to new package
+                oldPackageDir.eachFile { javaFile ->
+                    if (javaFile.name.endsWith('.java')) {
+                        def content = javaFile.text
+                        // Update package declaration
+                        content = content.replaceFirst(/package ${oldPackage};/, 'package ' + newPackage + ';')
+                        
+                        // Write updated content
+                        def newFile = file("${newPackageDir}/${javaFile.name}")
+                        newFile.text = content
+                        
+                        // Delete old file
+                        javaFile.delete()
+                    }
+                }
+                
+                // Remove old package directories if empty
+                def parentDir = oldPackageDir.parentFile
+                oldPackageDir.delete()
+                while (parentDir != srcDir && parentDir.list().length == 0) {
+                    parentDir.delete()
+                    parentDir = parentDir.parentFile
+                }
+                
+                println "  ✓ Moved files from ${oldPackage} to ${newPackage}"
+            }
+            
+            println ""
+        }
+        
+        println "========================================="
+        println "  ✅ Changes completed successfully!"
+        println "========================================="
+        println ""
+        println "⚠️  Next steps:"
+        println "  1. Run: .\\gradlew clean"
+        println "  2. Run: .\\gradlew build"
+        println "  3. Refresh your IDE (Eclipse/IntelliJ)"
+        println ""
+        
+        if (newPackage) {
+            println "📝 Note: If you changed the package, you may need to:"
+            println "   - Update mod_group_id in gradle.properties"
+            println "   - Re-import the project in your IDE"
+            println ""
+        }
+    }
+}
+
+// Alias task for starmc - offline mode only
+task starmc {
+    description = 'Launch Minecraft client in offline mode (no authentication)'
+    group = 'application'
+    
+    doFirst {
+        println "========================================="
+        println "  StarMC - Offline Mode"
+        println "========================================="
+        println ""
+        println "Starting in offline mode..."
+        println "Note: This mode does not support online skins"
+        println ""
+    }
+    
+    dependsOn 'runClient'
+}
+
+// Task for hightstar - supports LittleSkin and other auth servers with password authentication
+task hightstar {
+    description = 'Launch Minecraft client with username/password authentication'
+    group = 'application'
+    
+    doFirst {
+        def username = project.hasProperty('username') ? project.property('username') : null
+        def password = project.hasProperty('password') ? project.property('password') : null
+        def authServer = project.hasProperty('authserver') ? project.property('authserver') : 'https://littleskin.cn/api/yggdrasil'
+        
+        println "========================================="
+        println "  Highstar - Authentication"
+        println "========================================="
+        println ""
+        
+        if (!username) {
+            throw new GradleException("Username is required! Use -Pusername=yourname")
+        }
+        
+        if (!password) {
+            println "Warning: No password provided. Running in offline mode."
+            println "To use online authentication, add -Ppassword=yourpassword"
+            println ""
+            project.ext.set('authserver', authServer)
+            return
+        }
+        
+        println "Authenticating..."
+        println "  Username: ${username}"
+        println "  Auth Server: ${authServer}"
+        println ""
+        
+        // Call Yggdrasil API to authenticate
+        try {
+            def authUrl = "${authServer}/authenticate"
+            def clientToken = java.util.UUID.randomUUID().toString()
+            
+            def authJson = [
+                agent: [name: 'Minecraft', version: 1],
+                username: username,
+                password: password,
+                clientToken: clientToken,
+                requestUser: true
+            ]
+            
+            println "Sending authentication request..."
+            
+            def connection = new URL(authUrl).openConnection()
+            connection.setRequestMethod('POST')
+            connection.setDoOutput(true)
+            connection.setRequestProperty('Content-Type', 'application/json')
+            connection.getOutputStream().write(new groovy.json.JsonOutput().toJson(authJson).bytes)
+            
+            def responseCode = connection.getResponseCode()
+            def response
+            
+            if (responseCode == 200) {
+                response = connection.getInputStream().text
+            } else {
+                response = connection.getErrorStream()?.text ?: "HTTP ${responseCode}"
+                println "Authentication failed with HTTP ${responseCode}"
+                println "Response: ${response}"
+                throw new GradleException("Authentication failed: HTTP ${responseCode}")
+            }
+            
+            def jsonResponse = new groovy.json.JsonSlurper().parseText(response)
+            
+            def accessToken = jsonResponse.accessToken
+            def availableProfiles = jsonResponse.availableProfiles ?: []
+            def selectedProfile = jsonResponse.selectedProfile
+            
+            // If no profile is selected but multiple are available, choose the first one
+            if (!selectedProfile && availableProfiles.size() > 0) {
+                println "Multiple profiles found. Selecting the first one..."
+                selectedProfile = availableProfiles[0]
+                
+                println "Available profiles:"
+                availableProfiles.eachWithIndex { profile, index ->
+                    println "  ${index + 1}. ${profile.name} (${profile.id})"
+                }
+                println ""
+                println "Selected: ${selectedProfile.name}"
+                println ""
+            }
+            
+            if (selectedProfile) {
+                def uuid = selectedProfile.id
+                def playerName = selectedProfile.name
+                
+                println "Authentication successful!"
+                println "  Player Name: ${playerName}"
+                println "  UUID: ${uuid}"
+                println "  Access Token: ${accessToken.take(20)}..."
+                println ""
+                
+                // Store values for runClient
+                project.ext.set('auth_uuid', uuid)
+                project.ext.set('auth_token', accessToken)
+                project.ext.set('auth_username', playerName)
+                project.ext.set('authserver', authServer)
+            } else {
+                println "Error: No Minecraft profile found for this account"
+                println "Please make sure you have created a character on LittleSkin"
+                throw new GradleException("Authentication failed: No Minecraft profile found")
+            }
+            
+        } catch (GradleException e) {
+            throw e
+        } catch (Exception e) {
+            println "Authentication failed!"
+            println "  Error: ${e.class.simpleName}: ${e.message}"
+            println ""
+            println "Possible causes:"
+            println "  1. Wrong email/username or password"
+            println "  2. Invalid auth server URL"
+            println "  3. Network connection issue"
+            println "  4. LittleSkin server is down"
+            println "  5. No Minecraft character created"
+            println ""
+            println "Debug info:"
+            println "  Auth URL: ${authServer}/authenticate"
+            println "  Username/Email: ${username}"
+            println "  Exception type: ${e.class.name}"
+            if (e.cause) {
+                println "  Cause: ${e.cause.message}"
+            }
+            throw new GradleException("Authentication failed", e)
+        }
+    }
+    
+    dependsOn 'runClient'
+}

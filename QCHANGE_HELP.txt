@@ -1,0 +1,32 @@
+========================================
+  Qchange - 快速修改模组配置
+========================================
+
+查看帮助：
+.\gradlew Qchange
+
+只修改 Mod ID：
+.\gradlew Qchange -Pnewid=你的modid
+
+只修改 Mod 名称（显示在模组列表的标题）：
+.\gradlew Qchange -Pnewname=你的模组名称
+
+只修改主类名：
+.\gradlew Qchange -Pnewmainclass=你的类名
+
+只修改包名：
+.\gradlew Qchange -Pnewpackage=com.你的名字.modid
+
+同时修改所有（推荐）：
+.\gradlew Qchange -Pnewid=mymod -Pnewname=My Mod -Pnewmainclass=MyMod -Pnewpackage=com.myname.mymod
+
+
+========================================
+  使用示例
+========================================
+
+.\gradlew Qchange -Pnewid=testmod -Pnewname=Test Mod -Pnewmainclass=TestMod -Pnewpackage=com.example.testmod
+
+完成后执行：
+.\gradlew clean
+.\gradlew build

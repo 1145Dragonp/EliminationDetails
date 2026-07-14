@@ -1,0 +1,168 @@
+package ED;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 伤害追踪器：支持记录原始数据，并提供多种格式化输出。
+ */
+@Mod.EventBusSubscriber(modid = mainclass.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+public class DamageTracker {
+
+    // 记录当前战斗的所有伤害数据
+    private static final List<DamageRecord> battleRecords = new ArrayList<>();
+
+    // 记录致命一击的数据
+    private static DamageRecord fatalBlowRecord = null;
+
+    // 标记是否正在记录中
+    private static boolean isRecording = false;
+
+    // 名字安全显示的最大字符数
+    private static final int SAFE_NAME_LENGTH = 10;
+
+    /**
+     * 内部类：用于存储单次伤害的原始数据
+     */
+    private static class DamageRecord {
+        String playerName;
+        String attackerName;
+        float damage;
+        float playerHealth;
+        float playerMaxHealth;
+        float attackerHealth;
+        float attackerMaxHealth;
+        boolean isFatal;
+
+        DamageRecord(String playerName, String attackerName, float damage,
+                     float playerHealth, float playerMaxHealth,
+                     float attackerHealth, float attackerMaxHealth, boolean isFatal) {
+            this.playerName = playerName;
+            this.attackerName = attackerName;
+            this.damage = damage;
+            this.playerHealth = playerHealth;
+            this.playerMaxHealth = playerMaxHealth;
+            this.attackerHealth = attackerHealth;
+            this.attackerMaxHealth = attackerMaxHealth;
+            this.isFatal = isFatal;
+        }
+
+        // 生成完整版字符串（包含所有信息）
+        String toFullString() {
+            if (isFatal) {
+                return String.format("§c[致命一击] %s —— %.1f (%s:%.1f/%.1f | %s:%.1f/%.1f)",
+                        attackerName, damage, playerName, playerHealth, playerMaxHealth,
+                        attackerName, attackerHealth, attackerMaxHealth);
+            } else {
+                return String.format("%s —— %.1f", attackerName, damage);
+            }
+        }
+
+        // 生成安全版字符串（自动截断过长名字，防止聊天框超界）
+        String toSafeString() {
+            String safeAttacker = truncateName(attackerName);
+            String safePlayer = truncateName(playerName);
+
+            if (isFatal) {
+                return String.format("§c[致命一击] %s —— %.1f (%s:%.1f/%.1f | %s:%.1f/%.1f)",
+                        safeAttacker, damage, safePlayer, playerHealth, playerMaxHealth,
+                        safeAttacker, attackerHealth, attackerMaxHealth);
+            } else {
+                return String.format("%s —— %.1f", safeAttacker, damage);
+            }
+        }
+    }
+
+    /**
+     * 工具方法：截断过长的名字
+     */
+    private static String truncateName(String name) {
+        if (name.length() > SAFE_NAME_LENGTH) {
+            return name.substring(0, SAFE_NAME_LENGTH) + "..";
+        }
+        return name;
+    }
+
+    /**
+     * 监听玩家受伤事件
+     */
+    @SubscribeEvent
+    public static void onLivingHurt(LivingHurtEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+
+        float currentHealth = player.getHealth();
+        float maxHealth = player.getMaxHealth();
+        float damageAmount = event.getAmount();
+        DamageSource source = event.getSource();
+
+        // 满血重置记录
+        if (currentHealth >= maxHealth) {
+            isRecording = false;
+            battleRecords.clear();
+            fatalBlowRecord = null;
+        }
+
+        // 非满血开始或继续记录
+        if (currentHealth < maxHealth) {
+            isRecording = true;
+
+            if (source.getEntity() instanceof LivingEntity attacker) {
+                String attackerName = attacker.getName().getString();
+                String playerName = player.getName().getString();
+                float attackerHealth = attacker.getHealth();
+                float attackerMaxHealth = attacker.getMaxHealth();
+
+                boolean isFatal = (damageAmount >= currentHealth);
+
+                DamageRecord record = new DamageRecord(playerName, attackerName, damageAmount,
+                        currentHealth, maxHealth, attackerHealth, attackerMaxHealth, isFatal);
+
+                if (isFatal) {
+                    fatalBlowRecord = record;
+                } else {
+                    battleRecords.add(record);
+                }
+            }
+        }
+    }
+
+    /**
+     * 监听玩家死亡事件
+     */
+    @SubscribeEvent
+    public static void onPlayerDeath(LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+
+        player.sendSystemMessage(Component.literal("§c§l=== 淘汰详情 ==="));
+
+        if (battleRecords.isEmpty() && fatalBlowRecord == null) {
+            player.sendSystemMessage(Component.literal("§7未能记录到有效的伤害来源。"));
+        } else {
+            // 致命一击置顶 (这里你可以随时切换 toFullString() 或 toSafeString())
+            if (fatalBlowRecord != null) {
+                player.sendSystemMessage(Component.literal(fatalBlowRecord.toSafeString()));
+            }
+
+            // 显示其余普通伤害
+            for (DamageRecord record : battleRecords) {
+                player.sendSystemMessage(Component.literal("§e" + record.toSafeString()));
+            }
+        }
+
+        player.sendSystemMessage(Component.literal("§c§l================"));
+
+        // 清空记录
+        battleRecords.clear();
+        fatalBlowRecord = null;
+        isRecording = false;
+    }
+}
