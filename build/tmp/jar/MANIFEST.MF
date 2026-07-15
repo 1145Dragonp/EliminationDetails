@@ -3,7 +3,7 @@ Specification-Title: eliminationdetails
 Specification-Vendor: mrmagicdragon
 Specification-Version: 1
 Implementation-Title: EliminationDetails
-Implementation-Version: 1.0.3
+Implementation-Version: 1.0.4
 Implementation-Vendor: mrmagicdragon
-Implementation-Timestamp: 2026-07-15T16:31:54+0800
+Implementation-Timestamp: 2026-07-15T17:59:51+0800
 

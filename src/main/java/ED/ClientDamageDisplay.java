@@ -40,10 +40,23 @@ public class ClientDamageDisplay {
 
         // --- 1. 调度实体渲染 ---
         EntityType<?> killerType = findLastKillerType();
+
         if (killerType != null) {
             // 使用国际化键值替换硬编码字符串
             String killerTitle = Component.translatable("eliminationdetails.title.killer").getString();
-            EntityModelRenderer.render(guiGraphics, killerType, width / 4, height / 2 + 20, killerTitle);
+
+            // 尝试渲染实体模型
+            try {
+                EntityModelRenderer.render(guiGraphics, killerType, width / 4, height / 2 + 20, killerTitle);
+            } catch (Exception e) {
+                // 如果实体渲染失败，显示占位图
+                //LOGGER.warn("实体渲染失败，显示占位图", e);
+                ErrorRenderer.render(guiGraphics, width / 4, height / 2 - 40);
+            }
+        } else {
+            // 【关键修复】如果找不到击杀者实体类型，直接显示占位图
+            //LOGGER.info("未找到击杀者实体类型，显示占位图");
+            ErrorRenderer.render(guiGraphics, width / 4, height / 2 + 20);
         }
 
         // --- 2. 执行文字渲染 ---
