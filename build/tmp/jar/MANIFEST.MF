@@ -2,8 +2,8 @@ Manifest-Version: 1.0
 Specification-Title: eliminationdetails
 Specification-Vendor: mrmagicdragon
 Specification-Version: 1
-Implementation-Title: ttxq
-Implementation-Version: 1.0.0
+Implementation-Title: EliminationDetails
+Implementation-Version: 1.0.2
 Implementation-Vendor: mrmagicdragon
-Implementation-Timestamp: 2026-07-14T06:51:43+0800
+Implementation-Timestamp: 2026-07-15T15:59:50+0800
 

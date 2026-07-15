@@ -14,7 +14,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
+import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -43,7 +43,7 @@ public class ClientDamageDisplay {
         EntityType<?> killerType = findLastKillerType();
         if (killerType != null) {
             // 把参数喂给 EntityModelRenderer 去画
-            EntityModelRenderer.render(guiGraphics, killerType, width / 4, height / 2 + 20, "==淘汰者==");
+            EntityModelRenderer.render(guiGraphics, killerType, width / 4, height / 2 + 20, Component.translatable("eliminationdetails.title.killer").getString());
         }
 
         // --- 2. 执行文字渲染 (你上传的文档逻辑) ---
@@ -58,11 +58,11 @@ public class ClientDamageDisplay {
         // 组装排版数据
         List<String[]> lines = new ArrayList<>();
         // 【修改】颜色改为 0xFF5555 (红色)
-        lines.add(new String[]{"==淘汰详情==", String.valueOf(0xFF5555)});
+        lines.add(new String[]{Component.translatable("eliminationdetails.title.detail").getString(), String.valueOf(0xFF5555)});
 
         DamageTracker.DamageRecord fatal = DamageTracker.GLOBAL_FATAL_BLOW;
         if (fatal != null) {
-            lines.add(new String[]{"[致命一击] " + fatal.attackerName, String.valueOf(0xFF5555)});
+            lines.add(new String[]{Component.translatable("eliminationdetails.title.fatal_blow", fatal.attackerName).getString(), String.valueOf(0xFF5555)});
             lines.add(new String[]{String.format("%s (%.1f/%.1f)", fatal.playerName, fatal.playerHealth, fatal.playerMaxHealth), String.valueOf(0xFFFFFF)});
             lines.add(new String[]{String.format("%s (%.1f/%.1f)", fatal.attackerName, fatal.attackerHealth, fatal.attackerMaxHealth), String.valueOf(0xFFFF55)});
         }
@@ -72,7 +72,7 @@ public class ClientDamageDisplay {
         }
 
         if (lines.size() <= 1) {
-            lines.add(new String[]{"秒杀", String.valueOf(0xAAAAAA)});
+            lines.add(new String[]{Component.translatable("eliminationdetails.title.one_shot").getString(), String.valueOf(0xAAAAAA)});
         }
 
         // 只在刚打开死亡界面的第一帧打印一次日志
