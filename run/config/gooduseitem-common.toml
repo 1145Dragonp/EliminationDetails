@@ -1,7 +1,0 @@
-
-#MrMagicDragon 模组配置
-["Detector Arrow Settings"]
-	#雷达箭命中或被探测到的实体，发光效果持续的时间（单位：秒）
-	#Range: 1 ~ 3600
-	glowDurationSeconds = 15
-

@@ -1,9 +1,0 @@
-Manifest-Version: 1.0
-Specification-Title: eliminationdetails
-Specification-Vendor: mrmagicdragon
-Specification-Version: 1
-Implementation-Title: EliminationDetails
-Implementation-Version: 1.0.4
-Implementation-Vendor: mrmagicdragon
-Implementation-Timestamp: 2026-07-15T17:59:51+0800
-

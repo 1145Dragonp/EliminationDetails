@@ -35,6 +35,12 @@ public class DamageTracker {
     public static void onLivingHurt(LivingHurtEvent event) {
         // 【日志1】只要有人受伤，必定打印！
         //LOGGER.info("[DamageTracker] Hurt event triggered! Entity: {}", event.getEntity().getName().getString());
+        if (event.getEntity() instanceof Player) {
+            // 每次玩家进入世界（包括重生），强制清空旧记录
+            GLOBAL_RECORDS.clear();
+            GLOBAL_FATAL_BLOW = null;
+        }
+
 
         // 判断是否是玩家
         if (!(event.getEntity() instanceof Player player)) {

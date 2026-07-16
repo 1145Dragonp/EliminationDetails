@@ -60,13 +60,13 @@ public class ClientDamageDisplay {
         }
 
         // --- 2. 执行文字渲染 ---
-        renderKillLog(guiGraphics);
+        renderKillLog(guiGraphics, event.getScreen());
     }
 
     /**
      * 渲染右侧的战报文字列表
      */
-    private static void renderKillLog(GuiGraphics guiGraphics) {
+    private static void renderKillLog(GuiGraphics guiGraphics, net.minecraft.client.gui.screens.Screen screen) {
         // 组装排版数据
         List<String[]> lines = new ArrayList<>();
 
@@ -103,8 +103,14 @@ public class ClientDamageDisplay {
         }
 
         // 开始渲染
+
+        int btnX = screen.children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Button).mapToInt(w -> ((net.minecraft.client.gui.components.Button) w).getX()).findFirst().orElse(0);
+
+        //LOGGER.info(btnX);
+
         Font font = Minecraft.getInstance().font;
-        int x = 370;
+
+        int x = 215 + btnX;
         int baseY = 90;
         int lineHeight = font.lineHeight + 2;
         for (int i = 0; i < lines.size(); i++) {
